@@ -1,6 +1,6 @@
-define(["dojo/_base/lang", "dojo/_base/declare", "dojo/has", "dojo/on", "dojo/aspect", "dojo/touch", "dojo/_base/Color", "dojo/dom",
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/has", "dojo/on", "dojo/aspect", "pointer/pointerEvents", "dojo/_base/Color", "dojo/dom",
 		"dojo/dom-geometry", "dojo/_base/window", "./_base","./canvas", "./shape", "./matrix"],
-function(lang, declare, has, on, aspect, touch, Color, dom, domGeom, win, g, canvas, shapeLib, m){
+function(lang, declare, has, on, aspect, pointer, Color, dom, domGeom, win, g, canvas, shapeLib, m){
 	function makeFakeEvent(event){
 		// summary:
 		//		Generates a "fake", fully mutable event object by copying the properties from an original host Event
@@ -301,10 +301,8 @@ function(lang, declare, has, on, aspect, touch, Color, dom, domGeom, win, g, can
 					// data we need to figure out the target ourselves
 					var canvas = surface.getEventSource(),
 						target = canvas._dojoElementFromPoint(
-							// touch events may not be fixed at this point, so clientX/Y may not be set on the
-							// event object
-							(event.changedTouches ? event.changedTouches[0] : event).pageX,
-							(event.changedTouches ? event.changedTouches[0] : event).pageY
+							event.pageX,
+							event.pageY
 						);
 					if(has("dom-mutableEvents")){
 						Object.defineProperties(event, {
@@ -325,33 +323,6 @@ function(lang, declare, has, on, aspect, touch, Color, dom, domGeom, win, g, can
 						event.gfxTarget = target.shape;
 					}
 				}
-
-				// fixTouchListener in dojo/on undoes target changes by copying everything from changedTouches even
-				// if the value already exists on the event; of course, this canvas implementation currently only
-				// supports one pointer at a time. if we wanted to make sure all the touches arrays' targets were
-				// updated correctly as well, we could support multi-touch and this workaround would not be needed
-				if(has("touch")){
-					// some standard properties like clientX/Y are not provided on the main touch event object,
-					// so copy them over if we need to
-					if(event.changedTouches && event.changedTouches[0]){
-						var changedTouch = event.changedTouches[0];
-						for(k in changedTouch){
-							if(!event[k]){
-								if(has("dom-mutableEvents")){
-									Object.defineProperty(event, k, {
-										value: changedTouch[k],
-										configurable: true,
-										enumerable: true
-									});
-								}else{
-									event[k] = changedTouch[k];
-								}
-							}
-						}
-					}
-					event.corrected = event;
-				}
-
 				return listener.call(this, event);
 			};
 		},
@@ -394,16 +365,12 @@ function(lang, declare, has, on, aspect, touch, Color, dom, domGeom, win, g, can
 			// event behaviour
 			var TYPES = {
 					out: [
-						{ type: "mouseout", bubbles: true },
-						{ type: "MSPointerOut", bubbles: true },
 						{ type: "mouseleave", bubbles: false },
-						{ type: "dojotouchout", bubbles: true}
+						{ type: pointer.events.pointerout, bubbles: true}
 					],
 					over: [
-						{ type: "mouseover", bubbles: true },
-						{ type: "MSPointerOver", bubbles: true },
 						{ type: "mouseenter", bubbles: false },
-						{ type: "dojotouchover", bubbles: true}
+						{ type: pointer.events.pointerover, bubbles: true}
 					]
 				},
 				elementUnderPointer = event.target,
@@ -472,13 +439,7 @@ function(lang, declare, has, on, aspect, touch, Color, dom, domGeom, win, g, can
 			mirror.style.left = mirror.style.top = "-99999px";
 			canvas.parentNode.appendChild(mirror);
 
-			var moveEvt = "mousemove";
-			if(has("MSPointer")){
-				moveEvt = "MSPointerMove";
-			}else if(has("touch")){
-				moveEvt = "touchmove";
-			}
-			on(canvas, moveEvt, lang.hitch(this, "_checkPointer"));
+			on(canvas, pointer.events.pointermove, lang.hitch(this, "_checkPointer"));
 		},
 
 		destroy: function(){
@@ -523,8 +484,6 @@ function(lang, declare, has, on, aspect, touch, Color, dom, domGeom, win, g, can
 		surface.rawNode = canvas;
 		surface._parent = parent;
 		surface.surface = surface;
-
-		g._base._fixMsTouchAction(surface);
 
 		// any event handler added to the canvas needs to have its target fixed.
 		var oldAddEventListener = canvas.addEventListener,
