@@ -1,6 +1,6 @@
 define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/sniff",
-	"./ChartAction", "../Element", "dojo/touch", "../plot2d/common", "dojo/has!dojo-bidi?../bidi/action2d/ZoomAndPan"],
-	function(lang, declare, eventUtil, has, ChartAction, Element, touch, common, BidiTouchZoomAndPan){
+	"./ChartAction", "../Element", "pointer/pointerEvents", "../plot2d/common", "dojo/has!dojo-bidi?../bidi/action2d/ZoomAndPan"],
+	function(lang, declare, eventUtil, has, ChartAction, Element, pointer, common, BidiTouchZoomAndPan){
 	var GlassView = declare(Element, {
 		// summary:
 		//		Private internal class used by TouchZoomAndPan actions.
@@ -90,9 +90,11 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/sniff
 			// kwArgs: __TouchZoomAndPanCtorArgs?
 			//		Optional arguments for the action.
 			this._listeners = [
-				{eventName: touch.press, methodName: "onTouchStart"},
-				{eventName: touch.move, methodName: "onTouchMove"},
-				{eventName: touch.release, methodName: "onTouchEnd"}
+				{eventName: "dblclick", methodName: "onDoubleTap"},
+				{eventName: pointer.events.pointerdown, methodName: "onPointerDown"},
+				{eventName: pointer.events.pointermove, methodName: "onPointerMove"},
+				{eventName: pointer.events.pointercancel, methodName: "onPointerEnd"},
+				{eventName: pointer.events.pointerup, methodName: "onPointerEnd"}
 			];
 			if(!kwArgs){ kwArgs = {}; }
 			this.axis = kwArgs.axis ? kwArgs.axis : "x";
@@ -126,103 +128,88 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/sniff
 			this.inherited(arguments);
 		},
 
-		onTouchStart: function(event){
+		pInfo: [],
+		onPointerDown: function(event){
 			// summary:
-			//		Called when touch is started on the chart.
-
+			//		Called when a pointer is activated (mouse click or pen/finger touch the digitizer)
 			// we always want to be above regular plots and not clipped
 			var chart = this.chart, axis = chart.getAxis(this.axis);
-			var length = event.touches ? event.touches.length : 1;
-			var coord = event.touches ? event.touches[0] : event;
-			// in case we have a double tap register previous coord
-			var prevPageCoord = this._startPageCoord;
-			this._startPageCoord = {x: coord.pageX, y: coord.pageY};
+			var activeCount = this.pInfo.length;
 			if((this.enableZoom || this.enableScroll) && chart._delayedRenderHandle){
 				// we have pending rendering from a scroll, let's sync
 				chart.render();
 			}
-			if(this.enableZoom && length >= 2){
-				// we reset double tap
-				this._startTime = 0;
-				this._endPageCoord =  {x: event.touches[1].pageX, y: event.touches[1].pageY};
-				var middlePageCoord = {x: (this._startPageCoord.x + this._endPageCoord.x) / 2,
-										y: (this._startPageCoord.y + this._endPageCoord.y) / 2};
-				var scaler = axis.getScaler();
-				this._initScale = axis.getWindowScale();
-				var t = this._initData =  this.plot.toData();
-				this._middleCoord = t(middlePageCoord)[this.axis];
-				this._startCoord = scaler.bounds.from;
-				this._endCoord = scaler.bounds.to;
-			}else{
-				// double tap is only for single touch
-				if(!event.touches || event.touches.length == 1){
-					if(!this._startTime){
-						this._startTime = new Date().getTime();
-					}else if((new Date().getTime() - this._startTime) < 250 &&
-						Math.abs(this._startPageCoord.x - prevPageCoord.x) < 30 &&
-						Math.abs(this._startPageCoord.y - prevPageCoord.y) < 30){
-						this._startTime = 0;
-						this.onDoubleTap(event);
-					}else{
-						// we missed the doubletap, we need to re-init for next time
-						this._startTime = 0;
-					}
-				}else{
-					// we missed the doubletap, we need to re-init for next time
-					this._startTime = 0;
-				}
+			if(activeCount == 0){
+				// first pointer
+				this.pInfo.splice(0,0,{id: event.pointerId, x: event.pageX, y: event.pageY});
+				this._startPageCoord = {x: this.pInfo[0].x, y: this.pInfo[0].y};
 				if(this.enableScroll){
+					// ensure we always receive events for this pointer event
+					pointer.setPointerCapture(event.target, event.pointerId);
 					this._startScroll(axis);
-					// needed for Android, otherwise will get a touch cancel while swiping
-					eventUtil.stop(event);
+				}
+			}else{
+				if(activeCount == 1){
+					// second pointer
+					this.pInfo.splice(1,0,{id: event.pointerId, x: event.pageX, y: event.pageY});
+					this._startPageCoord = {x: this.pInfo[0].x, y: this.pInfo[0].y};
+					// ensure we always receive events for this pointer event
+					pointer.setPointerCapture(event.target, event.pointerId);
+					this._endPageCoord =  {x: event.pageX, y: event.pageY};
+					var middlePageCoord = {x: (this._startPageCoord.x + this._endPageCoord.x) / 2, y: (this._startPageCoord.y + this._endPageCoord.y) / 2};
+					var scaler = axis.getScaler();
+					this._initScale = axis.getWindowScale();
+					var t = this._initData =  this.plot.toData();
+					this._middleCoord = t(middlePageCoord)[this.axis];
+					this._startCoord = scaler.bounds.from;
+					this._endCoord = scaler.bounds.to;
 				}
 			}
 		},
 
-		onTouchMove: function(event){
+		onPointerMove: function(event){
 			// summary:
 			//		Called when touch is moved on the chart.
 			var chart = this.chart, axis = chart.getAxis(this.axis);
-			var length = event.touches ? event.touches.length : 1;
-			var pAttr = axis.vertical?"pageY":"pageX",
-					attr = axis.vertical?"y":"x";
-			// any move action cancel double tap
-			this._startTime = 0;
-			if(this.enableZoom && length >= 2){
-				var newMiddlePageCoord = {x: (event.touches[1].pageX + event.touches[0].pageX) / 2,
-											y: (event.touches[1].pageY + event.touches[0].pageY) / 2};
-				var scale = (this._endPageCoord[attr] - this._startPageCoord[attr]) /
-					(event.touches[1][pAttr] - event.touches[0][pAttr]);
+			var length = this.pInfo.length;
 
+			for(var i = length - 1; i >= 0; i--){ // retain current coordinates
+				if(this.pInfo[i].id == event.pointerId){
+					this.pInfo[i].x = event.pageX;
+					this.pInfo[i].y = event.pageY;
+					break;
+				}
+			}
+			if(this.enableZoom && length == 2){
+				var pAttr = axis.vertical?"y":"x", attr = axis.vertical?"y":"x";
+				var newMiddlePageCoord = {x: (this.pInfo[1].x + this.pInfo[0].x) / 2, y: (this.pInfo[1].y + this.pInfo[0].y) / 2};
+				var scale = (this._endPageCoord[attr] - this._startPageCoord[attr]) / (this.pInfo[1][pAttr] - this.pInfo[0][pAttr]);
 				if(this._initScale / scale > this.maxScale){
 					return;
 				}
-
 				var newMiddleCoord = this._initData(newMiddlePageCoord)[this.axis];
-
 				var newStart = scale * (this._startCoord - newMiddleCoord)  + this._middleCoord,
-				newEnd = scale * (this._endCoord - newMiddleCoord) + this._middleCoord;
+					newEnd = scale * (this._endCoord - newMiddleCoord) + this._middleCoord;
 				chart.zoomIn(this.axis, [newStart, newEnd]);
-				// avoid browser pan
-				eventUtil.stop(event);
-			}else if(this.enableScroll){
-				var delta = this._getDelta(event);
+			}else if(this.enableScroll && length == 1){
+				var delta = this._getPointerDelta(event);
 				chart.setAxisWindow(this.axis, this._lastScale, this._initOffset - delta / this._lastFactor / this._lastScale);
-				chart.delayedRender();
-				// avoid browser pan
-				eventUtil.stop(event);
+				( event.pointerType == "mouse")?chart.delayedRender():chart.render(); // otw touch dbl tap won't work because axis.getScaler() would return 'undefined'
 			}
 		},
 
-		onTouchEnd: function(event){
-			// summary:
-			//		Called when touch is ended on the chart.
+		onPointerEnd: function(event){
+			for(var i = this.pInfo.length - 1; i >= 0; i--){
+				if(this.pInfo[i].id == event.pointerId){ // remove pointer
+					this.pInfo.splice(i,1);
+					break;
+				}
+			}
 			var chart = this.chart, axis = chart.getAxis(this.axis);
-			if((!event.touches || event.touches.length == 1) && this.enableScroll){
+			if(this.pInfo.length <= 1 && this.enableScroll){
 				// still one touch available, let's start back from here for
 				// potential pan
-				var coord = event.touches ? event.touches[0] : event;
-				this._startPageCoord = {x: coord.pageX, y: coord.pageY};
+				this._startPageCoord = {x: event.pageX, y: event.pageY};
 				this._startScroll(axis);
 			}
 		},
@@ -253,16 +240,14 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/sniff
 				chart.setAxisWindow(this.axis, 1, 0);
 				chart.render();
 			}
-			eventUtil.stop(event);
 		},
-		
-		_getDelta: function(event){
+
+		_getPointerDelta: function(event){
 			var axis = this.chart.getAxis(this.axis),
 			    pAttr = axis.vertical?"pageY":"pageX",
 				attr = axis.vertical?"y":"x";
-			var coord = event.touches?event.touches[0]:event;
-			return axis.vertical?(this._startPageCoord[attr] - coord[pAttr]):
-				(coord[pAttr] - this._startPageCoord[attr]);
+			return axis.vertical?(this._startPageCoord[attr] - event[pAttr]):
+				(event[pAttr] - this._startPageCoord[attr]);
 		}
 	});
 	return has("dojo-bidi")? declare("dojox.charting.action2d.TouchZoomAndPan", [TouchZoomAndPan, BidiTouchZoomAndPan]) : TouchZoomAndPan;
