@@ -19,7 +19,6 @@
 		<style type="text/css">
 		@import "../../../dojo/resources/dojo.css";
 		@import "../../../dijit/themes/tundra/tundra.css";
-		body { -ms-touch-action: none; }
 		</style>
 		<script type="text/javascript" src="../../../dojo/dojo.js"
 			data-dojo-config="isDebug: true, parseOnLoad: true"></script>
@@ -79,7 +78,7 @@
 						74, 68, 67, 62, 62, 65, 61, 66, 65, 62, 74, 78, 78, 77, 74, 62,
 						72, 74, 70, 78, 84, 83, 85, 86, 86, 89, 89, 85, 86, 86, 98, 73,
 						93, 91, 92, 92, 99, 93, 94, 92 ]);
-				new dojox.charting.action2d.TouchZoomAndPan(chart, "default", 
+				new dojox.charting.action2d.TouchZoomAndPan(chart, "default",
 						{axis: "x", enableScroll : false, enableZoom : false});
 				new dojox.charting.action2d.TouchIndicator(chart, "default",
 						{ series: "Series A", 
@@ -98,6 +97,6 @@
 		</script>
 	</head>
 	<body class="tundra" style="height: 100%; width: 100%">
-		<div id="chart" style="width: 100%; height: 100%;"></div>
+		<div id="chart" data-touch-action="none" style="height: 100%; width: 100%"></div>
 	</body>
 </html>

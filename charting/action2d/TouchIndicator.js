@@ -1,5 +1,5 @@
-define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/touch", "./ChartAction", "./_IndicatorElement", "dojox/lang/utils"],
-	function(lang, declare, eventUtil, touch, ChartAction, IndicatorElement, du){
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "pointer/pointerEvents", "./ChartAction", "./_IndicatorElement", "dojox/lang/utils"],
+	function(lang, declare, eventUtil, pointer, ChartAction, IndicatorElement, du){
 	
 	/*=====
 	var __TouchIndicatorCtorArgs = {
@@ -115,10 +115,10 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/touch
 			// kwArgs: __TouchIndicatorCtorArgs?
 			//		Optional arguments for the chart action.
 			this._listeners = [
-				{eventName: touch.press, methodName: "onTouchStart"},
-				{eventName: touch.move, methodName: "onTouchMove"},
-				{eventName: touch.release, methodName: "onTouchEnd"},
-				{eventName: touch.cancel, methodName: "onTouchEnd"}
+				{eventName: pointer.events.pointerdown, methodName: "onPointerDown"},
+				{eventName: pointer.events.pointermove, methodName: "onPointerMove"},
+				{eventName: pointer.events.pointerup, methodName: "onPointerEnd"},
+				{eventName: pointer.events.pointercancel, methodName: "onPointerEnd"}
 			];
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
@@ -142,7 +142,7 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/touch
 			var plot = this.chart.getPlot(this._uName);
 			if(plot.pageCoord){
 				// we might still have something drawn on the screen
-				this.onTouchEnd();
+				this.onPointerEnd();
 			}
 			this.chart.removePlot(this._uName);
 			this.inherited(arguments);
@@ -157,59 +157,96 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/touch
 			//		text.
 		},
 
-		onTouchStart: function(event){
+		pInfo: [],
+		onPointerDown: function(event){
 			// summary:
-			//		Called when touch is started on the chart.
-			if(!event.touches || event.touches.length == 1){
-				this._onTouchSingle(event, true);
-			}else if(this.opt.dualIndicator && event.touches.length == 2){
-				this._onTouchDual(event);
+			//		Called when a pointer is activated (mouse click or pen/finger touch the digitizer)
+			if(!this.pInfo[0]){
+				this.pInfo[0] = {
+					id: event.pointerId,
+					x: event.pageX,
+					y: event.pageY
+				};
+				// ensure we always receive events for this pointer event
+				pointer.setPointerCapture(event.target, event.pointerId);
+				this._onPointSingle(this.pInfo[0].x, this.pInfo[0].y, true);
+			}else{
+				if(!this.pInfo[1] && this.opt.dualIndicator){
+					this.pInfo[1] = {
+						id: event.pointerId,
+						x: event.pageX,
+						y: event.pageY
+					};
+					// ensure we always receive events for this pointer event
+					pointer.setPointerCapture(event.target, event.pointerId);
+					this._onPointDual(this.pInfo[0].x, this.pInfo[0].y,this.pInfo[1].x, this.pInfo[1].y);
+				}
+			}
+			return false;
+		},
+
+		onPointerMove: function(event){
+			// summary:
+			//		Called when a pointer moved on the chart.
+			if(event.pointerType == "mouse" || !this.pInfo[0]){
+				this.pInfo[0] = {
+					id: event.pointerId,
+					x: event.pageX,
+					y: event.pageY
+				};
+			}
+			if(this.pInfo[0] && event.pointerId == this.pInfo[0].id){
+				this.pInfo[0].x = event.pageX;
+				this.pInfo[0].y = event.pageY;
+			}else{
+				if(this.pInfo[1] && this.opt.dualIndicator && (event.pointerId == this.pInfo[1].id)){
+					this.pInfo[1].x = event.pageX;
+					this.pInfo[1].y = event.pageY;
+				}
+			}
+			if(this.pInfo[0] && this.pInfo[1]){
+				this._onPointDual(this.pInfo[0].x, this.pInfo[0].y,this.pInfo[1].x, this.pInfo[1].y);
+			} else {
+				if(this.pInfo[0] || this.pInfo[1]){
+					this._onPointSingle(this.pInfo[0].x, this.pInfo[0].y);
+				}
 			}
 		},
 
-		onTouchMove: function(event){
-			// summary:
-			//		Called when touch is moved on the chart.
-			if(!event.touches || event.touches.length == 1){
-				this._onTouchSingle(event);
-			}else if(this.opt.dualIndicator && event.touches.length == 2){
-				this._onTouchDual(event);
-			}
-		},
-
-		_onTouchSingle: function(event, delayed){
+		_onPointSingle: function(x, y, delayed){
 			if(this.chart._delayedRenderHandle && !delayed){
 				// we have pending rendering from a previous call, let's sync
 				this.chart.render();
 			}
 			var plot = this.chart.getPlot(this._uName);
-			plot.pageCoord  = {x: event.touches?event.touches[0].pageX:event.pageX, y: event.touches?event.touches[0].pageY:event.pageY};
+			plot.pageCoord  = {x: x, y: y};
 			plot.dirty = true;
 			if(delayed){
 				this.chart.delayedRender();
 			}else{
 				this.chart.render();
 			}
-			eventUtil.stop(event);
 		},
-		
-		_onTouchDual: function(event){
+
+		_onPointDual: function(x1, y1, x2, y2){
 			// sync
 			if(this.chart._delayedRenderHandle){
 				// we have pending rendering from a previous call, let's sync
 				this.chart.render();
 			}
 			var plot = this.chart.getPlot(this._uName);
-			plot.pageCoord = {x: event.touches[0].pageX, y: event.touches[0].pageY};
-			plot.secondCoord = {x: event.touches[1].pageX, y: event.touches[1].pageY};
+			plot.pageCoord = {x: x1, y: y1};
+			plot.secondCoord = {x: x2, y: y2};
 			plot.dirty = true;
 			this.chart.render();
-			eventUtil.stop(event);
+			//eventUtil.stop(event);
 		},
 
-		onTouchEnd: function(event){
+		onPointerEnd: function(event){
 			// summary:
-			//		Called when touch is ended or canceled on the chart.
+			//		Called when pointer is removed or canceled on the chart.
+			this.pInfo[0] = null;
+			this.pInfo[1] = null;
 			var plot = this.chart.getPlot(this._uName);
 			plot.stopTrack();
 			plot.pageCoord = null;
