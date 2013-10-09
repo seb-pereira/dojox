@@ -1,4 +1,4 @@
-define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "pointer/pointerEvents", "./ChartAction", "./_IndicatorElement", "dojox/lang/utils"],
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "pointer/events", "./ChartAction", "./_IndicatorElement", "dojox/lang/utils"],
 	function(lang, declare, eventUtil, pointer, ChartAction, IndicatorElement, du){
 	
 	/*=====
@@ -115,10 +115,10 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "pointer/po
 			// kwArgs: __TouchIndicatorCtorArgs?
 			//		Optional arguments for the chart action.
 			this._listeners = [
-				{eventName: pointer.events.pointerdown, methodName: "onPointerDown"},
-				{eventName: pointer.events.pointermove, methodName: "onPointerMove"},
-				{eventName: pointer.events.pointerup, methodName: "onPointerEnd"},
-				{eventName: pointer.events.pointercancel, methodName: "onPointerEnd"}
+				{eventName: pointer.events.DOWN, methodName: "onPointerDown"},
+				{eventName: pointer.events.MOVE, methodName: "onPointerMove"},
+				{eventName: pointer.events.UP, methodName: "onPointerEnd"},
+				{eventName: pointer.events.CANCEL, methodName: "onPointerEnd"}
 			];
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
