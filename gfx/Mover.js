@@ -1,4 +1,4 @@
-define(["dojo/_base/lang","dojo/_base/array", "dojo/_base/declare", "dojo/on", "pointer/pointerEvents", "dojo/_base/event"],
+define(["dojo/_base/lang","dojo/_base/array", "dojo/_base/declare", "dojo/on", "pointer/events", "dojo/_base/event"],
   function(lang, arr, declare, on, pointer, event){
 	return declare("dojox.gfx.Mover", null, {
 		constructor: function(shape, e, host){
@@ -17,11 +17,11 @@ define(["dojo/_base/lang","dojo/_base/array", "dojo/_base/declare", "dojo/on", "
 			this.lastX = e.clientX;
 			this.lastY = e.clientY;
 			var h = this.host = host, d = document,
-				firstEvent = on(d, pointer.events.pointermove, lang.hitch(this, "onFirstMove"));
+				firstEvent = on(d, pointer.events.MOVE, lang.hitch(this, "onFirstMove"));
 
 			this.events = [
-				on(d, pointer.events.pointermove, lang.hitch(this, "onMouseMove")),
-				on(d, pointer.events.pointerup, lang.hitch(this, "destroy")),
+				on(d, pointer.events.MOVE, lang.hitch(this, "onMouseMove")),
+				on(d, pointer.events.UP, lang.hitch(this, "destroy")),
 				// cancel text selection and text dragging
 				on(d, "dragstart",   lang.hitch(event, "stop")),
 				on(d, "selectstart", lang.hitch(event, "stop")),

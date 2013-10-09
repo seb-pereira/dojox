@@ -1,4 +1,4 @@
-define(["dojo/_base/lang", "dojo/_base/declare", "dojo/has", "dojo/on", "dojo/aspect", "pointer/pointerEvents", "dojo/_base/Color", "dojo/dom",
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/has", "dojo/on", "dojo/aspect", "pointer/events", "dojo/_base/Color", "dojo/dom",
 		"dojo/dom-geometry", "dojo/_base/window", "./_base","./canvas", "./shape", "./matrix"],
 function(lang, declare, has, on, aspect, pointer, Color, dom, domGeom, win, g, canvas, shapeLib, m){
 	function makeFakeEvent(event){
@@ -366,11 +366,11 @@ function(lang, declare, has, on, aspect, pointer, Color, dom, domGeom, win, g, c
 			var TYPES = {
 					out: [
 						{ type: "mouseleave", bubbles: false },
-						{ type: pointer.events.pointerout, bubbles: true}
+						{ type: pointer.events.OUT, bubbles: true}
 					],
 					over: [
 						{ type: "mouseenter", bubbles: false },
-						{ type: pointer.events.pointerover, bubbles: true}
+						{ type: pointer.events.OVER, bubbles: true}
 					]
 				},
 				elementUnderPointer = event.target,
@@ -439,7 +439,7 @@ function(lang, declare, has, on, aspect, pointer, Color, dom, domGeom, win, g, c
 			mirror.style.left = mirror.style.top = "-99999px";
 			canvas.parentNode.appendChild(mirror);
 
-			on(canvas, pointer.events.pointermove, lang.hitch(this, "_checkPointer"));
+			on(canvas, pointer.events.MOVE, lang.hitch(this, "_checkPointer"));
 		},
 
 		destroy: function(){

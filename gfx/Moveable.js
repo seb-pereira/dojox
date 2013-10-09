@@ -1,4 +1,4 @@
-define(["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/event","dojo/topic","pointer/pointerEvents",
+define(["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/event","dojo/topic","pointer/events",
 	"dojo/dom-class","dojo/_base/window","./Mover"],
   function(lang,declare,arr,event,topic,pointer,domClass,win,Mover){
 
@@ -30,7 +30,7 @@ define(["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/ev
 			this.delay = (params && params.delay > 0) ? params.delay : 0;
 			this.mover = (params && params.mover) ? params.mover : Mover;
 			this.events = [
-				this.shape.on(pointer.events.pointerdown, lang.hitch(this, "onMouseDown"))
+				this.shape.on(pointer.events.DOWN, lang.hitch(this, "onMouseDown"))
 				// cancel text selection and text dragging
 				//, dojo.connect(this.handle, "ondragstart",   dojo, "stopEvent")
 				//, dojo.connect(this.handle, "onselectstart", dojo, "stopEvent")
@@ -55,8 +55,8 @@ define(["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/ev
 			//		mouse event
 			if(this.delay){
 				this.events.push(
-					this.shape.on(pointer.events.pointermove, lang.hitch(this, "onMouseMove")),
-					this.shape.on(pointer.events.pointerup, lang.hitch(this, "onMouseUp")));
+					this.shape.on(pointer.events.MOVE, lang.hitch(this, "onMouseMove")),
+					this.shape.on(pointer.events.UP, lang.hitch(this, "onMouseUp")));
 				this._lastX = e.clientX;
 				this._lastY = e.clientY;
 			}else{

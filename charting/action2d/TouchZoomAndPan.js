@@ -1,5 +1,5 @@
 define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/sniff",
-	"./ChartAction", "../Element", "pointer/pointerEvents", "../plot2d/common", "dojo/has!dojo-bidi?../bidi/action2d/ZoomAndPan"],
+	"./ChartAction", "../Element", "pointer/events", "../plot2d/common", "dojo/has!dojo-bidi?../bidi/action2d/ZoomAndPan"],
 	function(lang, declare, eventUtil, has, ChartAction, Element, pointer, common, BidiTouchZoomAndPan){
 	var GlassView = declare(Element, {
 		// summary:
@@ -91,10 +91,10 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/event", "dojo/sniff
 			//		Optional arguments for the action.
 			this._listeners = [
 				{eventName: "dblclick", methodName: "onDoubleTap"},
-				{eventName: pointer.events.pointerdown, methodName: "onPointerDown"},
-				{eventName: pointer.events.pointermove, methodName: "onPointerMove"},
-				{eventName: pointer.events.pointercancel, methodName: "onPointerEnd"},
-				{eventName: pointer.events.pointerup, methodName: "onPointerEnd"}
+				{eventName: pointer.events.DOWN, methodName: "onPointerDown"},
+				{eventName: pointer.events.MOVE, methodName: "onPointerMove"},
+				{eventName: pointer.events.CANCEL, methodName: "onPointerEnd"},
+				{eventName: pointer.events.UP, methodName: "onPointerEnd"}
 			];
 			if(!kwArgs){ kwArgs = {}; }
 			this.axis = kwArgs.axis ? kwArgs.axis : "x";
